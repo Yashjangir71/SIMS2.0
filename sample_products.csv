@@ -1,0 +1,11 @@
+name,category,unitPrice,currentStock,reorderPoint,supplier
+Gaming Laptop,Electronics,89999,5,3,TechCorp
+Mechanical Keyboard,Electronics,5499,25,10,TechCorp
+4K Monitor,Electronics,32999,8,5,DisplayTech
+Ergonomic Chair,Furniture,18999,12,6,FurniMax
+Standing Desk,Furniture,24999,4,2,FurniMax
+Whiteboard Marker Set,Stationery,599,150,50,PaperWorld
+Sticky Notes Pack,Stationery,249,200,100,PaperWorld
+Green Tea Bags,Food,899,40,20,BevCorp
+Protein Bars Box,Food,1499,60,30,FoodSupply
+Wireless Headphones,Electronics,7999,15,8,TechCorp

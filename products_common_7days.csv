@@ -1,0 +1,11 @@
+name,category,unitPrice,currentStock,reorderPoint,supplier
+Laptop Computer,Electronics,74699,0,10,Dell
+Wireless Mouse,Electronics,2489,0,10,Logitech
+USB Cable,Accessories,1078,0,10,Anker
+Office Chair,Furniture,16599,0,10,Herman Miller
+Desk Lamp,Accessories,4149,0,10,Philips
+Notebook A4,Stationery,414,0,10,Classmate
+Ballpoint Pen,Stationery,165,0,10,Reynolds
+Coffee Beans,Food,2074,0,10,BlueTokai
+Energy Drink,Beverages,248,0,10,RedBull
+Smartphone,Electronics,58099,0,10,Samsung

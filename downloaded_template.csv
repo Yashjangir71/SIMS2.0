@@ -1,0 +1,4 @@
+name,category,unitPrice,currentStock,reorderPoint,supplier
+Sample Laptop,Electronics,74699,10,5,TechCorp
+Sample Mouse,Electronics,2489,50,20,TechCorp
+Sample Notebook,Stationery,414,100,50,PaperWorld
