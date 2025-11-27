@@ -19,7 +19,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 // ==================== MIDDLEWARE ====================
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Parse JSON request bodies
-app.use(express.static('.')); // Serve static files (index.html, etc.)
+// Serve only specific static files to avoid exposing server code
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.get('/styles.css', (req, res) => {
+    res.sendFile(path.join(__dirname, 'styles.css'));
+});
+app.get('/app.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'app.js'));
+});
 
 // ==================== FILE UPLOAD CONFIGURATION ====================
 const upload = multer({
@@ -1432,26 +1441,24 @@ async function initializeSampleData() {
 
 // ==================== START SERVER ====================
 
-// Only start server if not running as Vercel serverless function
-if (process.env.VERCEL !== '1') {
-    app.listen(PORT, async () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
-        console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-        
-        // Initialize sample data on first run
+// Start server (Render/Local). Seed data only when allowed.
+const SHOULD_SEED = process.env.SEED_SAMPLE_DATA === 'true' || process.env.NODE_ENV !== 'production';
+app.listen(PORT, async () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
+    if (SHOULD_SEED) {
         await initializeSampleData();
-    });
+    } else {
+        console.log('🔒 Sample data seeding is disabled (production mode).');
+    }
+});
 
-    // Handle graceful shutdown
-    process.on('SIGINT', async () => {
-        console.log('\n⏹️  Shutting down server...');
-        await mongoose.connection.close();
-        process.exit(0);
-    });
-} else {
-    // Initialize sample data for Vercel on first cold start
-    initializeSampleData().catch(console.error);
-}
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\n⏹️  Shutting down server...');
+    await mongoose.connection.close();
+    process.exit(0);
+});
 
-// Export app for Vercel serverless functions
+// Export app (useful for testing or future adapters)
 module.exports = app;
