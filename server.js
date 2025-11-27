@@ -54,7 +54,8 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart_
 
 // Connect to MongoDB with automatic reconnection
 mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    serverSelectionTimeoutMS: 10000, // Timeout after 10s
+    connectTimeoutMS: 10000, // Connection handshake timeout
     socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
 })
     .then(() => console.log('✅ Connected to MongoDB Atlas'))
@@ -1442,12 +1443,20 @@ async function initializeSampleData() {
 // ==================== START SERVER ====================
 
 // Start server (Render/Local). Always seed on first deploy.
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-    
-    // Always seed sample data if no users exist (safe for production)
-    await initializeSampleData();
+
+    // Kick off sample-data initialization in background so server startup isn't blocked.
+    (async () => {
+        try {
+            console.log('⏳ Checking/creating sample data in background...');
+            await initializeSampleData();
+            console.log('✅ Sample data check/seed complete');
+        } catch (err) {
+            console.error('❌ Sample data initialization error (background):', err.message || err);
+        }
+    })();
 });
 
 // Handle graceful shutdown
