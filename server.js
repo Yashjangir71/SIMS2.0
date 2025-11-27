@@ -1432,17 +1432,26 @@ async function initializeSampleData() {
 
 // ==================== START SERVER ====================
 
-app.listen(PORT, async () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-    
-    // Initialize sample data on first run
-    await initializeSampleData();
-});
+// Only start server if not running as Vercel serverless function
+if (process.env.VERCEL !== '1') {
+    app.listen(PORT, async () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+        console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
+        
+        // Initialize sample data on first run
+        await initializeSampleData();
+    });
 
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-    console.log('\n⏹️  Shutting down server...');
-    await mongoose.connection.close();
-    process.exit(0);
-});
+    // Handle graceful shutdown
+    process.on('SIGINT', async () => {
+        console.log('\n⏹️  Shutting down server...');
+        await mongoose.connection.close();
+        process.exit(0);
+    });
+} else {
+    // Initialize sample data for Vercel on first cold start
+    initializeSampleData().catch(console.error);
+}
+
+// Export app for Vercel serverless functions
+module.exports = app;

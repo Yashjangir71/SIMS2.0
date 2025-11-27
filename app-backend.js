@@ -12,7 +12,10 @@ let showImportedOnly = false; // filter flag for imported products
 let cachedSalesForReports = null; // cache for re-rendering reports chart
 
 // API Configuration
-const API_BASE_URL = 'http://localhost:3000/api';
+// Automatically detect if running locally or deployed
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000/api' 
+    : `${window.location.origin}/api`;
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
