@@ -12,10 +12,10 @@ let showImportedOnly = false; // filter flag for imported products
 let cachedSalesForReports = null; // cache for re-rendering reports chart
 
 // API Configuration
-// Use Vercel API when deployed, localhost for local development
+// Automatically detect API URL based on environment
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3000/api' 
-    : '/api';
+    : `${window.location.origin}/api`;
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {

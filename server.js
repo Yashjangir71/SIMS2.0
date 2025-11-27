@@ -26,8 +26,8 @@ app.get('/', (req, res) => {
 app.get('/styles.css', (req, res) => {
     res.sendFile(path.join(__dirname, 'styles.css'));
 });
-app.get('/app.js', (req, res) => {
-    res.sendFile(path.join(__dirname, 'app.js'));
+app.get('/app-backend.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'app-backend.js'));
 });
 
 // ==================== FILE UPLOAD CONFIGURATION ====================
@@ -1441,16 +1441,13 @@ async function initializeSampleData() {
 
 // ==================== START SERVER ====================
 
-// Start server (Render/Local). Seed data only when allowed.
-const SHOULD_SEED = process.env.SEED_SAMPLE_DATA === 'true' || process.env.NODE_ENV !== 'production';
+// Start server (Render/Local). Always seed on first deploy.
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-    if (SHOULD_SEED) {
-        await initializeSampleData();
-    } else {
-        console.log('🔒 Sample data seeding is disabled (production mode).');
-    }
+    
+    // Always seed sample data if no users exist (safe for production)
+    await initializeSampleData();
 });
 
 // Handle graceful shutdown
