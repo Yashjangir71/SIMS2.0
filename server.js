@@ -1461,6 +1461,15 @@ if (require.main === module) {
             }
         })();
     });
+} else {
+    // Vercel/serverless path: ensure demo data exists for login flows.
+    (async () => {
+        try {
+            await initializeSampleData();
+        } catch (err) {
+            console.error('❌ Sample data initialization error (serverless):', err.message || err);
+        }
+    })();
 }
 
 // Handle graceful shutdown
