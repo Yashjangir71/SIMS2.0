@@ -54,7 +54,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 }
 
 // ==================== DATABASE CONNECTION ====================
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart_inventory';
+let MONGODB_URI = process.env.MONGODB_URI;
 
 async function ensureMongoConnection() {
     if (mongoose.connection.readyState === 1) {
@@ -63,13 +63,24 @@ async function ensureMongoConnection() {
 
     if (!mongoConnectionPromise) {
         // Reuse a single in-flight connection promise to avoid parallel connect storms on serverless.
-        mongoConnectionPromise = mongoose.connect(MONGODB_URI, {
-            serverSelectionTimeoutMS: 10000, // Timeout after 10s
-            connectTimeoutMS: 10000, // Connection handshake timeout
-            socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-        }).then(() => {
-            console.log('✅ Connected to MongoDB Atlas');
-        }).catch((err) => {
+        mongoConnectionPromise = (async () => {
+            if (!MONGODB_URI) {
+                if (IS_VERCEL || process.env.NODE_ENV === 'production') {
+                    throw new Error('MONGODB_URI environment variable is required in production.');
+                }
+                console.log('⚠️ No MONGODB_URI provided. Starting in-memory MongoDB...');
+                const { MongoMemoryServer } = require('mongodb-memory-server');
+                const mongoServer = await MongoMemoryServer.create();
+                MONGODB_URI = mongoServer.getUri();
+            }
+
+            await mongoose.connect(MONGODB_URI, {
+                serverSelectionTimeoutMS: 10000, // Timeout after 10s
+                connectTimeoutMS: 10000, // Connection handshake timeout
+                socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+            });
+            console.log('✅ Connected to MongoDB at ' + MONGODB_URI);
+        })().catch((err) => {
             console.error('❌ MongoDB connection error:', err);
             mongoConnectionPromise = null;
             throw err;
