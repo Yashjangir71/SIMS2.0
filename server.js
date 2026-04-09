@@ -54,7 +54,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 }
 
 // ==================== DATABASE CONNECTION ====================
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart_inventory';
+let MONGODB_URI = process.env.MONGODB_URI;
 
 async function ensureMongoConnection() {
     if (mongoose.connection.readyState === 1) {
@@ -64,14 +64,13 @@ async function ensureMongoConnection() {
     if (!mongoConnectionPromise) {
         // Reuse a single in-flight connection promise to avoid parallel connect storms on serverless.
         mongoConnectionPromise = mongoose.connect(MONGODB_URI, {
-            serverSelectionTimeoutMS: 15000, // Increased from 10s for Vercel
-            connectTimeoutMS: 15000,
-            socketTimeoutMS: 45000,
-            maxPoolSize: IS_VERCEL ? 5 : 10, // Smaller pool for serverless
+            serverSelectionTimeoutMS: 10000, // Timeout after 10s
+            connectTimeoutMS: 10000, // Connection handshake timeout
+            socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
         }).then(() => {
             console.log('✅ Connected to MongoDB Atlas');
         }).catch((err) => {
-            console.error('❌ MongoDB connection error:', err.message);
+            console.error('❌ MongoDB connection error:', err);
             mongoConnectionPromise = null;
             throw err;
         });
