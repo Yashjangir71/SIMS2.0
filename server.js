@@ -17,6 +17,8 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const IS_VERCEL = !!process.env.VERCEL;
 const UPLOAD_DIR = IS_VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
+let mongoConnectionPromise = null;
+let sampleDataInitPromise = null;
 
 // ==================== MIDDLEWARE ====================
 app.use(cors()); // Enable CORS for all routes
@@ -54,14 +56,28 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 // ==================== DATABASE CONNECTION ====================
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart_inventory';
 
-// Connect to MongoDB with automatic reconnection
-mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 10000, // Timeout after 10s
-    connectTimeoutMS: 10000, // Connection handshake timeout
-    socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-})
-    .then(() => console.log('✅ Connected to MongoDB Atlas'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+async function ensureMongoConnection() {
+    if (mongoose.connection.readyState === 1) {
+        return;
+    }
+
+    if (!mongoConnectionPromise) {
+        // Reuse a single in-flight connection promise to avoid parallel connect storms on serverless.
+        mongoConnectionPromise = mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 10000, // Timeout after 10s
+            connectTimeoutMS: 10000, // Connection handshake timeout
+            socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+        }).then(() => {
+            console.log('✅ Connected to MongoDB Atlas');
+        }).catch((err) => {
+            console.error('❌ MongoDB connection error:', err);
+            mongoConnectionPromise = null;
+            throw err;
+        });
+    }
+
+    await mongoConnectionPromise;
+}
 
 // Handle connection events
 mongoose.connection.on('connected', () => {
@@ -74,6 +90,26 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
     console.warn('⚠️ Mongoose disconnected from MongoDB');
+    mongoConnectionPromise = null;
+});
+
+async function ensureSampleDataInitialized() {
+    if (!sampleDataInitPromise) {
+        sampleDataInitPromise = (async () => {
+            await ensureMongoConnection();
+            await initializeSampleData();
+        })().catch((err) => {
+            sampleDataInitPromise = null;
+            throw err;
+        });
+    }
+
+    await sampleDataInitPromise;
+}
+
+// Kick off connection early to reduce first-request latency.
+ensureMongoConnection().catch(() => {
+    // Errors are handled per request and by connection event logs.
 });
 
 // ==================== SCHEMAS ====================
@@ -186,6 +222,22 @@ app.get('/api/health', (req, res) => {
         database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
         uptime: process.uptime()
     });
+});
+
+// Ensure DB is ready on all API requests except health checks.
+app.use('/api', async (req, res, next) => {
+    if (req.path === '/health') {
+        return next();
+    }
+
+    try {
+        await ensureMongoConnection();
+        await ensureSampleDataInitialized();
+        next();
+    } catch (error) {
+        console.error('❌ API bootstrap error:', error.message || error);
+        res.status(503).json({ error: 'Service temporarily unavailable. Please try again in a few seconds.' });
+    }
 });
 
 // ==================== AUTH ROUTES ====================
@@ -1454,7 +1506,7 @@ if (require.main === module) {
         (async () => {
             try {
                 console.log('⏳ Checking/creating sample data in background...');
-                await initializeSampleData();
+                await ensureSampleDataInitialized();
                 console.log('✅ Sample data check/seed complete');
             } catch (err) {
                 console.error('❌ Sample data initialization error (background):', err.message || err);
@@ -1465,7 +1517,7 @@ if (require.main === module) {
     // Vercel/serverless path: ensure demo data exists for login flows.
     (async () => {
         try {
-            await initializeSampleData();
+            await ensureSampleDataInitialized();
         } catch (err) {
             console.error('❌ Sample data initialization error (serverless):', err.message || err);
         }
