@@ -64,13 +64,14 @@ async function ensureMongoConnection() {
     if (!mongoConnectionPromise) {
         // Reuse a single in-flight connection promise to avoid parallel connect storms on serverless.
         mongoConnectionPromise = mongoose.connect(MONGODB_URI, {
-            serverSelectionTimeoutMS: 10000, // Timeout after 10s
-            connectTimeoutMS: 10000, // Connection handshake timeout
-            socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+            serverSelectionTimeoutMS: 15000, // Increased from 10s for Vercel
+            connectTimeoutMS: 15000,
+            socketTimeoutMS: 45000,
+            maxPoolSize: IS_VERCEL ? 5 : 10, // Smaller pool for serverless
         }).then(() => {
             console.log('✅ Connected to MongoDB Atlas');
         }).catch((err) => {
-            console.error('❌ MongoDB connection error:', err);
+            console.error('❌ MongoDB connection error:', err.message);
             mongoConnectionPromise = null;
             throw err;
         });
@@ -96,15 +97,23 @@ mongoose.connection.on('disconnected', () => {
 async function ensureSampleDataInitialized() {
     if (!sampleDataInitPromise) {
         sampleDataInitPromise = (async () => {
-            await ensureMongoConnection();
-            await initializeSampleData();
-        })().catch((err) => {
-            sampleDataInitPromise = null;
-            throw err;
-        });
+            try {
+                await ensureMongoConnection();
+                await initializeSampleData();
+            } catch (err) {
+                console.error('❌ Sample data initialization failed:', err.message);
+                // Don't throw - allow app to continue even if sample data fails
+                sampleDataInitPromise = null;
+            }
+        })();
     }
 
-    await sampleDataInitPromise;
+    try {
+        await sampleDataInitPromise;
+    } catch (err) {
+        console.error('❌ Waiting for sample data failed:', err.message);
+        // Continue anyway
+    }
 }
 
 // Kick off connection early to reduce first-request latency.
@@ -232,7 +241,12 @@ app.use('/api', async (req, res, next) => {
 
     try {
         await ensureMongoConnection();
-        await ensureSampleDataInitialized();
+        // Don't block on sample data initialization - run it in background
+        if (!sampleDataInitPromise) {
+            ensureSampleDataInitialized().catch(err => {
+                console.error('Background sample data initialization error:', err.message);
+            });
+        }
         next();
     } catch (error) {
         console.error('❌ API bootstrap error:', error.message || error);
