@@ -15,6 +15,8 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const IS_VERCEL = !!process.env.VERCEL;
+const UPLOAD_DIR = IS_VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 
 // ==================== MIDDLEWARE ====================
 app.use(cors()); // Enable CORS for all routes
@@ -32,7 +34,7 @@ app.get('/app-backend.js', (req, res) => {
 
 // ==================== FILE UPLOAD CONFIGURATION ====================
 const upload = multer({
-    dest: 'uploads/',
+    dest: UPLOAD_DIR,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max file size
     fileFilter: (req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
@@ -45,8 +47,8 @@ const upload = multer({
 });
 
 // Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 // ==================== DATABASE CONNECTION ====================
